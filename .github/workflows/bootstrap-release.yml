@@ -1,0 +1,85 @@
+name: Bootstrap release v0.1.0 (CI gated)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: pdbguard-release-v0.1.0
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip already published version
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout successful CI commit
+        if: steps.gate.outputs.publish == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Python
+        if: steps.gate.outputs.publish == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Verify exact CI provenance and run tests again
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$MAIN_SHA" = "$CI_SHA" || { echo 'CI commit is no longer main HEAD'; exit 1; }
+          test "$(git rev-parse HEAD)" = "$CI_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" --jq '.conclusion')" = 'success'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" --jq '.head_sha')" = "$CI_SHA"
+          test "$(PYTHONPATH=src python -c 'from pdbguard import __version__; print(__version__)')" = '0.1.0'
+          PYTHONPATH=src python -m unittest discover -s tests -q
+      - name: Build release artifacts and publish
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never rebind an existing tag to a different commit.
+          TAG_REF=""
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.1.0" --silent >/dev/null 2>&1; then
+            TAG_REF="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.1.0" --jq '.object.sha')"
+          fi
+          if [[ -n "$TAG_REF" && "$TAG_REF" != "$CI_SHA" ]]; then
+            echo 'Tag exists at another revision, refusing to republish'; exit 1
+          fi
+          mkdir -p dist
+          git archive --format=zip --prefix=pdbguard/ HEAD > dist/pdbguard-v0.1.0.zip
+          python -m pip wheel --no-deps . -w dist
+          (
+            cd dist
+            sha256sum pdbguard-v0.1.0.zip *.whl > SHA256SUMS
+          )
+          gh release create v0.1.0 \
+            dist/pdbguard-v0.1.0.zip dist/*.whl dist/SHA256SUMS \
+            --target "$CI_SHA" --title 'PDBGuard v0.1.0' --notes-file RELEASE_NOTES.md

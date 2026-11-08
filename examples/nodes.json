@@ -1,0 +1,74 @@
+{
+  "apiVersion": "v1",
+  "kind": "NodeList",
+  "items": [
+    {
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-a",
+        "labels": {
+          "topology.kubernetes.io/zone": "zone-east"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-b",
+        "labels": {
+          "topology.kubernetes.io/zone": "zone-east"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-c",
+        "labels": {
+          "topology.kubernetes.io/zone": "zone-west"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-d",
+        "labels": {
+          "topology.kubernetes.io/zone": "zone-west"
+        }
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    }
+  ]
+}

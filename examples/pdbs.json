@@ -1,0 +1,26 @@
+{
+  "apiVersion": "policy/v1",
+  "kind": "PodDisruptionBudgetList",
+  "items": [
+    {
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "web-budget",
+        "namespace": "production",
+        "generation": 3
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "web"
+          }
+        },
+        "unhealthyPodEvictionPolicy": "IfHealthyBudget"
+      },
+      "status": {
+        "observedGeneration": 3,
+        "disruptionsAllowed": 1
+      }
+    }
+  ]
+}

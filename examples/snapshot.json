@@ -1,0 +1,90 @@
+{
+  "apiVersion": "pdbguard.io/v1",
+  "nodes": [
+    {
+      "name": "worker-a",
+      "zone": "zone-east",
+      "ready": true
+    },
+    {
+      "name": "worker-b",
+      "zone": "zone-east",
+      "ready": true
+    },
+    {
+      "name": "worker-c",
+      "zone": "zone-west",
+      "ready": true
+    },
+    {
+      "name": "worker-d",
+      "zone": "zone-west",
+      "ready": true
+    }
+  ],
+  "pods": [
+    {
+      "namespace": "production",
+      "name": "web-1",
+      "node": "worker-a",
+      "labels": {
+        "app": "web",
+        "tier": "api"
+      },
+      "ownerKind": "ReplicaSet",
+      "phase": "Running",
+      "ready": true,
+      "terminating": false,
+      "mirror": false,
+      "emptyDir": false,
+      "safeToEvict": true
+    },
+    {
+      "namespace": "production",
+      "name": "web-2",
+      "node": "worker-b",
+      "labels": {
+        "app": "web",
+        "tier": "api"
+      },
+      "ownerKind": "ReplicaSet",
+      "phase": "Running",
+      "ready": true,
+      "terminating": false,
+      "mirror": false,
+      "emptyDir": false,
+      "safeToEvict": true
+    },
+    {
+      "namespace": "production",
+      "name": "web-3",
+      "node": "worker-c",
+      "labels": {
+        "app": "web",
+        "tier": "api"
+      },
+      "ownerKind": "ReplicaSet",
+      "phase": "Running",
+      "ready": true,
+      "terminating": false,
+      "mirror": false,
+      "emptyDir": false,
+      "safeToEvict": true
+    }
+  ],
+  "pdbs": [
+    {
+      "namespace": "production",
+      "name": "web-budget",
+      "selector": {
+        "matchLabels": {
+          "app": "web"
+        }
+      },
+      "allowed": 1,
+      "generation": 3,
+      "observedGeneration": 3,
+      "unhealthyPolicy": "IfHealthyBudget"
+    }
+  ]
+}

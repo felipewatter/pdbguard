@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=75,<82", "wheel>=0.44,<1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdbguard"
+version = "0.1.0"
+description = "Offline Kubernetes disruption budget and maintenance wave simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "Felipe Watter"}]
+keywords = ["kubernetes", "pdb", "maintenance", "availability", "security", "sre"]
+classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Operating System :: OS Independent", "Topic :: System :: Systems Administration", "Topic :: Security"]
+dependencies = []
+
+[project.scripts]
+pdbguard = "pdbguard.cli:main"
+
+[project.urls]
+Repository = "https://github.com/felipewatter/pdbguard"
+Issues = "https://github.com/felipewatter/pdbguard/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,71 @@
+name: Release (manual, CI-gated)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Semantic release tag matching package version, e.g. v0.2.0
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: pdbguard-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact main revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Validate release tag, exact successful CI and package version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid tag'; exit 1; }
+          test "$TAG_NAME" = "v$(PYTHONPATH=src python -c 'from pdbguard import __version__; print(__version__)')" || { echo 'Version mismatch'; exit 1; }
+          SHA="$(git rev-parse HEAD)"
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$CURRENT" = "$SHA" || exit 1
+          CI_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&status=completed&per_page=100" --jq '[.workflow_runs[] | select(.event == "push" and .conclusion == "success")] | length')"
+          test "$CI_COUNT" -gt 0 || { echo 'No successful push CI for this commit'; exit 1; }
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists'; exit 1
+          fi
+          TAG_REF=""
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG_NAME" --silent >/dev/null 2>&1; then
+            TAG_REF="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG_NAME" --jq '.object.sha')"
+          fi
+          if [[ -n "$TAG_REF" && "$TAG_REF" != "$SHA" ]]; then
+            echo 'Tag points to different commit'; exit 1
+          fi
+          PYTHONPATH=src python -m unittest discover -s tests -q
+      - name: Build source ZIP, wheel and SHA256SUMS
+        env:
+          TAG_NAME: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=zip --prefix=pdbguard/ HEAD > "dist/pdbguard-${TAG_NAME}.zip"
+          python -m pip wheel --no-deps . -w dist
+          (cd dist && sha256sum "pdbguard-${TAG_NAME}.zip" *.whl > SHA256SUMS)
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG_NAME" dist/*.zip dist/*.whl dist/SHA256SUMS \
+            --target "$(git rev-parse HEAD)" --title "PDBGuard $TAG_NAME" --notes-file RELEASE_NOTES.md
