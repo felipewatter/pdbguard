@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] — 2026-11-09
+
+- Maintenance release after updating the bounded `setuptools` build dependency to `<85`.
+- Revalidated cross-platform Python CI and immutable, SHA-256-verified package artifacts.
+- No changes to PDB simulation algorithms or advisory-only operational safeguards.
+
 ## [0.1.0] — 2026-11-08
 
 - New offline import of Kubernetes Nodes, Pods and PodDisruptionBudgets JSON lists.
